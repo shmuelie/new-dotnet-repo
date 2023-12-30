@@ -1,0 +1,77 @@
+<Project>
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);MSB3270</NoWarn>
+  </PropertyGroup>
+
+  <!-- Centralized location for all generated artifacts -->
+  <PropertyGroup>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts/</PackageOutputPath>
+  </PropertyGroup>
+
+  <!--
+    The target version being built (this is referenced by all build steps).
+    This version will set the package version prefix and the assembly version.
+    As such, this needs to be changed before a new release as well.
+  -->
+  <PropertyGroup>
+    <ShmueliePackageVersion>1.0.0</ShmueliePackageVersion>
+    <IsCommitOnReleaseBranch>false</IsCommitOnReleaseBranch>
+  </PropertyGroup>
+
+  <!--
+    Check if the current push is for a release build for NuGet, as that will create a package with a hardcoded version.
+    A release build is one that originates from a push to a branch with the format 'rel/<BUILD_VERSION>(.<SUFFIX>)?'.
+  -->
+  <PropertyGroup>
+    <ReleaseVersionParsingRegex>^rel/(\d{1,4}\.\d{1,4}\.\d{1,4})(?:-(\w+(?:\.\w+)?))?$</ReleaseVersionParsingRegex>
+    <IsBranchNameStartingWithRefPrefix>$([System.Text.RegularExpressions.Regex]::IsMatch($(GITHUB_REF_NAME), $(ReleaseVersionParsingRegex)))</IsBranchNameStartingWithRefPrefix>
+  </PropertyGroup>
+
+  <!-- If the current branch and action match a release for NuGet, override the relative build properties -->
+  <PropertyGroup Condition="'$(GITHUB_EVENT_NAME)' == 'push' AND '$(GITHUB_REF_NAME)' != '' AND '$(IsBranchNameStartingWithRefPrefix)' == 'true'">
+    <IsCommitOnReleaseBranch>true</IsCommitOnReleaseBranch>
+    <ShmueliePackageVersionFromReleaseBranch>$([System.Text.RegularExpressions.Regex]::Match($(GITHUB_REF_NAME), $(ReleaseVersionParsingRegex)).Groups[1].Value)</ShmueliePackageVersionFromReleaseBranch>
+    <ShmueliePackageVersionSuffixFromReleaseBranch>$([System.Text.RegularExpressions.Regex]::Match($(GITHUB_REF_NAME), $(ReleaseVersionParsingRegex)).Groups[2].Value)</ShmueliePackageVersionSuffixFromReleaseBranch>
+    <ShmueliePackageVersion>$(ShmueliePackageVersionFromReleaseBranch)</ShmueliePackageVersion>
+    <VersionSuffix>$(ShmueliePackageVersionSuffixFromReleaseBranch)</VersionSuffix>
+  </PropertyGroup>
+
+  <!-- Configure the assembly version and suffix for both normal CI builds and release builds -->
+  <PropertyGroup>
+    <AssemblyVersion>$(ShmueliePackageVersion).0</AssemblyVersion>
+    <VersionPrefix>$(ShmueliePackageVersion)</VersionPrefix>
+    <VersionSuffix Condition="'$(GITHUB_EVENT_NAME)' != 'pull_request' AND '$(IsCommitOnReleaseBranch)' != 'true'">alpha</VersionSuffix>
+    <VersionSuffix Condition="'$(GITHUB_EVENT_NAME)' == 'pull_request' AND '$(IsCommitOnReleaseBranch)' != 'true'">pr</VersionSuffix>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_RUN_ID)' != ''">true</ContinuousIntegrationBuild>
+    <RepositoryUrl>https://github.com/shmuelie/Shmuelie./</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <ProjectUrl>https://github.com/shmuelie/Shmuelie./</ProjectUrl>
+    <Authors>Shmueli Englard</Authors>
+    <Owners>Shmueli Englard</Owners>
+    <Company>Shmueli Englard</Company>
+    <Copyright>Copyright (c) 2022 Shmueli Englard</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageIconUrl>https://github.com/shmuelie/Shmuelie./blob/main/Shmuelie.-64.png?raw=true</PackageIconUrl>
+    <PackageTags>dotnet net netcore netstandard csharp library</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.1.1" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Needed for deterministic builds -->
+  <ItemGroup>
+    <SourceRoot Include="$(MSBuildThisFileDirectory)/"/>
+  </ItemGroup>
+</Project>
